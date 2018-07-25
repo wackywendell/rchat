@@ -1,9 +1,10 @@
 cargo-features = ["edition"]
 
 [package]
-edition = '2018'
+authors = ["Wendell Smith <wackywendell@gmail.com>"]
+edition = "2018"
 name = "rchat"
 version = "0.1.0"
-authors = ["Wendell Smith <wackywendell@gmail.com>"]
 
 [dependencies]
+clap = "*"
