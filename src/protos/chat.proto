@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+message Registration {
+    string name = 1;
+}
+
+
+message Registered {}
+
+service Serve {
+    rpc Register (Registration) returns (Registered) {}
+}

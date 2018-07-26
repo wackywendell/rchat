@@ -7,4 +7,10 @@ name = "rchat"
 version = "0.1.0"
 
 [dependencies]
-clap = "*"
+clap = "2.32.0"
+grpcio = "0.3"
+# futures = "0.1.16"
+protobuf = "2.0.4"
+
+[build-dependencies]
+protoc-grpcio = "0.2.0"

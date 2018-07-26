@@ -5,6 +5,7 @@ fn main() {
     let server_subparser = clap::SubCommand::with_name("serve").arg(
         clap::Arg::with_name("port")
             .short("p")
+            .long("port")
             .help("Set port to serve on"),
     );
 
