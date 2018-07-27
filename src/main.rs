@@ -10,10 +10,11 @@ impl protos::chat_grpc::Serve for ChatServer {
     fn register(
         &self,
         _ctx: grpcio::RpcContext<'_>,
-        _req: protos::chat::Registration,
-        _sink: grpcio::UnarySink<protos::chat::Registered>,
+        req: protos::chat::Registration,
+        sink: grpcio::UnarySink<protos::chat::Registered>,
     ) {
-
+        println!("Registering {}", req.name);
+        sink.success(protos::chat::Registered::new());
     }
 }
 
