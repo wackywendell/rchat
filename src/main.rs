@@ -68,7 +68,10 @@ fn serve(s: &ServeOpt) {
         let _ = std::io::stdin().read(&mut [0]).unwrap();
         tx.send(())
     });
-    let _ = rx.wait();
+    match rx.wait() {
+        Ok(()) => {}
+        Err(c) => println!("Err: {}", c),
+    }
     let _ = server.shutdown().wait();
 }
 
