@@ -25,6 +25,20 @@ const METHOD_SERVE_REGISTER: ::grpcio::Method<super::chat::Registration, super::
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
+const METHOD_SERVE_LISTEN: ::grpcio::Method<super::chat::Registered, super::chat::SentMessage> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::ServerStreaming,
+    name: "/Serve/Listen",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+const METHOD_SERVE_SAY: ::grpcio::Method<super::chat::ChatMessage, super::chat::Empty> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/Serve/Say",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
 pub struct ServeClient {
     client: ::grpcio::Client,
 }
@@ -51,6 +65,30 @@ impl ServeClient {
     pub fn register_async(&self, req: &super::chat::Registration) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Registered>> {
         self.register_async_opt(req, ::grpcio::CallOption::default())
     }
+
+    pub fn listen_opt(&self, req: &super::chat::Registered, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<super::chat::SentMessage>> {
+        self.client.server_streaming(&METHOD_SERVE_LISTEN, req, opt)
+    }
+
+    pub fn listen(&self, req: &super::chat::Registered) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<super::chat::SentMessage>> {
+        self.listen_opt(req, ::grpcio::CallOption::default())
+    }
+
+    pub fn say_opt(&self, req: &super::chat::ChatMessage, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::chat::Empty> {
+        self.client.unary_call(&METHOD_SERVE_SAY, req, opt)
+    }
+
+    pub fn say(&self, req: &super::chat::ChatMessage) -> ::grpcio::Result<super::chat::Empty> {
+        self.say_opt(req, ::grpcio::CallOption::default())
+    }
+
+    pub fn say_async_opt(&self, req: &super::chat::ChatMessage, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Empty>> {
+        self.client.unary_call_async(&METHOD_SERVE_SAY, req, opt)
+    }
+
+    pub fn say_async(&self, req: &super::chat::ChatMessage) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Empty>> {
+        self.say_async_opt(req, ::grpcio::CallOption::default())
+    }
     pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Item = (), Error = ()> + Send + 'static {
         self.client.spawn(f)
     }
@@ -58,6 +96,8 @@ impl ServeClient {
 
 pub trait Serve {
     fn register(&self, ctx: ::grpcio::RpcContext, req: super::chat::Registration, sink: ::grpcio::UnarySink<super::chat::Registered>);
+    fn listen(&self, ctx: ::grpcio::RpcContext, req: super::chat::Registered, sink: ::grpcio::ServerStreamingSink<super::chat::SentMessage>);
+    fn say(&self, ctx: ::grpcio::RpcContext, req: super::chat::ChatMessage, sink: ::grpcio::UnarySink<super::chat::Empty>);
 }
 
 pub fn create_serve<S: Serve + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
@@ -65,6 +105,14 @@ pub fn create_serve<S: Serve + Send + Clone + 'static>(s: S) -> ::grpcio::Servic
     let instance = s.clone();
     builder = builder.add_unary_handler(&METHOD_SERVE_REGISTER, move |ctx, req, resp| {
         instance.register(ctx, req, resp)
+    });
+    let instance = s.clone();
+    builder = builder.add_server_streaming_handler(&METHOD_SERVE_LISTEN, move |ctx, req, resp| {
+        instance.listen(ctx, req, resp)
+    });
+    let instance = s.clone();
+    builder = builder.add_unary_handler(&METHOD_SERVE_SAY, move |ctx, req, resp| {
+        instance.say(ctx, req, resp)
     });
     builder.build()
 }
