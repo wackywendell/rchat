@@ -5,8 +5,24 @@ message Registration {
 }
 
 
-message Registered {}
+message Registered {
+    int64 session = 1;
+}
+
+message SentMessage {
+    string name = 1;
+    string message = 2;
+}
+
+message ChatMessage {
+    int64 session = 1;
+    string message = 2;
+}
+
+message Empty {}
 
 service Serve {
-    rpc Register (Registration) returns (Registered) {}
+    rpc Register (Registration) returns (Registered);
+    rpc Listen (Registered) returns (stream SentMessage);
+    rpc Say (ChatMessage) returns (Empty);
 }
