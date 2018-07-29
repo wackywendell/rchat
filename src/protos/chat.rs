@@ -187,7 +187,7 @@ impl ::protobuf::reflect::ProtobufValue for Registration {
 #[derive(PartialEq,Clone,Default)]
 pub struct Registered {
     // message fields
-    pub session: i64,
+    pub session: u64,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -198,18 +198,18 @@ impl Registered {
         ::std::default::Default::default()
     }
 
-    // int64 session = 1;
+    // uint64 session = 1;
 
     pub fn clear_session(&mut self) {
         self.session = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_session(&mut self, v: i64) {
+    pub fn set_session(&mut self, v: u64) {
         self.session = v;
     }
 
-    pub fn get_session(&self) -> i64 {
+    pub fn get_session(&self) -> u64 {
         self.session
     }
 }
@@ -227,7 +227,7 @@ impl ::protobuf::Message for Registered {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    let tmp = is.read_int64()?;
+                    let tmp = is.read_uint64()?;
                     self.session = tmp;
                 },
                 _ => {
@@ -252,7 +252,7 @@ impl ::protobuf::Message for Registered {
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
         if self.session != 0 {
-            os.write_int64(1, self.session)?;
+            os.write_uint64(1, self.session)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -296,7 +296,7 @@ impl ::protobuf::Message for Registered {
         unsafe {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint64>(
                     "session",
                     |m: &Registered| { &m.session },
                     |m: &mut Registered| { &mut m.session },
@@ -548,7 +548,7 @@ impl ::protobuf::reflect::ProtobufValue for SentMessage {
 #[derive(PartialEq,Clone,Default)]
 pub struct ChatMessage {
     // message fields
-    pub session: i64,
+    pub session: u64,
     pub message: ::std::string::String,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
@@ -560,18 +560,18 @@ impl ChatMessage {
         ::std::default::Default::default()
     }
 
-    // int64 session = 1;
+    // uint64 session = 1;
 
     pub fn clear_session(&mut self) {
         self.session = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_session(&mut self, v: i64) {
+    pub fn set_session(&mut self, v: u64) {
         self.session = v;
     }
 
-    pub fn get_session(&self) -> i64 {
+    pub fn get_session(&self) -> u64 {
         self.session
     }
 
@@ -615,7 +615,7 @@ impl ::protobuf::Message for ChatMessage {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    let tmp = is.read_int64()?;
+                    let tmp = is.read_uint64()?;
                     self.session = tmp;
                 },
                 2 => {
@@ -646,7 +646,7 @@ impl ::protobuf::Message for ChatMessage {
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
         if self.session != 0 {
-            os.write_int64(1, self.session)?;
+            os.write_uint64(1, self.session)?;
         }
         if !self.message.is_empty() {
             os.write_string(2, &self.message)?;
@@ -693,7 +693,7 @@ impl ::protobuf::Message for ChatMessage {
         unsafe {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint64>(
                     "session",
                     |m: &ChatMessage| { &m.session },
                     |m: &mut ChatMessage| { &mut m.session },
@@ -865,10 +865,10 @@ impl ::protobuf::reflect::ProtobufValue for Empty {
 
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\nchat.proto\"\"\n\x0cRegistration\x12\x12\n\x04name\x18\x01\x20\x01(\
-    \tR\x04name\"&\n\nRegistered\x12\x18\n\x07session\x18\x01\x20\x01(\x03R\
+    \tR\x04name\"&\n\nRegistered\x12\x18\n\x07session\x18\x01\x20\x01(\x04R\
     \x07session\";\n\x0bSentMessage\x12\x12\n\x04name\x18\x01\x20\x01(\tR\
     \x04name\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\"A\n\x0bCha\
-    tMessage\x12\x18\n\x07session\x18\x01\x20\x01(\x03R\x07session\x12\x18\n\
+    tMessage\x12\x18\n\x07session\x18\x01\x20\x01(\x04R\x07session\x12\x18\n\
     \x07message\x18\x02\x20\x01(\tR\x07message\"\x07\n\x05Empty2s\n\x05Serve\
     \x12&\n\x08Register\x12\r.Registration\x1a\x0b.Registered\x12%\n\x06List\
     en\x12\x0b.Registered\x1a\x0c.SentMessage0\x01\x12\x1b\n\x03Say\x12\x0c.\
