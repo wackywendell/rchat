@@ -11,10 +11,11 @@ name = "protos"
 path = "src/protos/mod.rs"
 
 [dependencies]
-structopt = "0.2"
-grpcio = "0.3"
 futures = "0.1"
+grpcio = "0.3"
 protobuf = "2.0"
+rand = "0.4"
+structopt = "0.2"
 
 [build-dependencies]
 protoc-grpcio = "0.2"

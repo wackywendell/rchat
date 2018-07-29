@@ -1,8 +1,10 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
+use rand::Rng;
+use std::collections::HashMap;
 use std::io::Read;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use protos::chat;
 use protos::chat_grpc;
@@ -20,6 +22,9 @@ struct ServeOpt {
 struct ClientOpt {
     #[structopt(short = "p", long = "port", default_value = "6789")]
     port: u16,
+
+    #[structopt(short = "n", long = "name", default_value = "anon")]
+    name: String,
 }
 
 #[derive(StructOpt, Debug)]
@@ -32,9 +37,27 @@ enum Opt {
     Client(ClientOpt),
 }
 
+struct ClientMap {
+    members: HashMap<u64, String>,
+    ids: rand::StdRng,
+}
+
 #[derive(Clone)]
 struct ChatServer {
-    members: Vec<String>,
+    // Maps unique ID to name
+    clients: Arc<Mutex<ClientMap>>,
+}
+
+impl ChatServer {
+    fn new() -> ChatServer {
+        let cm = ClientMap {
+            members: HashMap::new(),
+            ids: rand::StdRng::new().unwrap(),
+        };
+        return ChatServer {
+            clients: Arc::new(Mutex::new(cm)),
+        };
+    }
 }
 
 impl chat_grpc::Serve for ChatServer {
@@ -45,19 +68,60 @@ impl chat_grpc::Serve for ChatServer {
         sink: grpcio::UnarySink<chat::Registered>,
     ) {
         println!("Registering {}", req.name);
-        sink.success(chat::Registered::new());
+        let mut reply = chat::Registered::new();
+        let mut clients = self.clients.lock().unwrap();
+        for _ in 1..20 {
+            reply.session = clients.ids.next_u64();
+            if !clients.members.contains_key(&reply.session) {
+                clients.members.insert(reply.session, req.name);
+                sink.success(reply);
+                return;
+            }
+        }
+        sink.fail(grpcio::RpcStatus::new(
+            grpcio::RpcStatusCode::ResourceExhausted,
+            Some("Ran out of sessions".to_owned()),
+        ));
+    }
+
+    fn listen(
+        &self,
+        _ctx: grpcio::RpcContext<'_>,
+        _req: chat::Registered,
+        _sink: grpcio::ServerStreamingSink<chat::SentMessage>,
+    ) {
+    }
+
+    fn say(
+        &self,
+        _ctx: grpcio::RpcContext<'_>,
+        req: chat::ChatMessage,
+        sink: grpcio::UnarySink<chat::Empty>,
+    ) {
+        let cli = self.clients.lock().unwrap();
+        let name = match cli.members.get(&req.session) {
+            None => {
+                sink.fail(grpcio::RpcStatus::new(
+                    grpcio::RpcStatusCode::NotFound,
+                    Some("Session not found".to_owned()),
+                ));
+                return;
+            }
+            Some(n) => n,
+        };
+        println!("=> {} {}", name, req.message);
+        sink.success(chat::Empty::new());
     }
 }
 
-fn serve(s: &ServeOpt) {
+fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {
     let env = Arc::new(grpcio::Environment::new(2));
-    let instance = ChatServer { members: vec![] };
+    let instance = ChatServer::new();
     let service = chat_grpc::create_serve(instance);
     let mut server = grpcio::ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", s.port)
-        .build()
-        .unwrap();
+        .build()?;
     server.start();
     for &(ref host, port) in server.bind_addrs() {
         println!("listening on {}:{}", host, port);
@@ -72,33 +136,76 @@ fn serve(s: &ServeOpt) {
         Ok(()) => {}
         Err(c) => println!("Err: {}", c),
     }
-    let _ = server.shutdown().wait();
+    server.shutdown().wait()
 }
 
-fn main() {
+struct ChatClient {
+    id: u64,
+    cli: chat_grpc::ServeClient,
+}
+
+impl ChatClient {
+    fn new(session: u64, client: chat_grpc::ServeClient) -> ChatClient {
+        ChatClient {
+            id: session,
+            cli: client,
+        }
+    }
+
+    fn register(client: chat_grpc::ServeClient, name: String) -> Result<ChatClient, grpcio::Error> {
+        let mut r = chat::Registration::new();
+        r.name = name;
+        let s = client.register(&r)?;
+
+        Ok(ChatClient::new(s.session, client))
+    }
+
+    fn say(&self, msg: String) -> Result<(), grpcio::Error> {
+        let mut cm = chat::ChatMessage::new();
+        cm.session = self.id;
+        cm.message = msg.trim().to_owned();
+        return self.cli.say(&cm).map(|_| ());
+    }
+}
+
+fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
+    let env = Arc::new(grpcio::Environment::new(2));
+    let cb = grpcio::ChannelBuilder::new(env);
+    let addr = format!("{}:{}", "127.0.0.1", o.port);
+    let ch = cb.connect(&addr);
+    let c = chat_grpc::ServeClient::new(ch);
+    let cli = ChatClient::register(c, o.name.clone())?;
+
+    let mut input = String::new();
+
+    loop {
+        match std::io::stdin().read_line(&mut input) {
+            Ok(n) => {
+                println!("{} bytes read", n);
+                println!("- {}", input);
+                cli.say(input.clone())?;
+            }
+            Err(error) => {
+                println!("error: {}", error);
+                break;
+            }
+        }
+    }
+
+    return Ok(());
+}
+
+fn main() -> Result<(), grpcio::Error> {
     let opt = Opt::from_args();
 
     match opt {
         Opt::Serve(s) => {
             println!("Serving {:?}", s);
-            serve(&s);
+            serve(&s)
         }
-        c @ Opt::Client { .. } => println!("Client {:?}", c),
+        Opt::Client(c) => {
+            println!("Client {:?}", c);
+            client(&c)
+        }
     }
-
-    // let server_subparser = clap::SubCommand::with_name("serve").arg(
-    //     clap::Arg::with_name("port")
-    //         .short("p")
-    //         .long("port")
-    //         .help("Set port to serve on"),
-    // );
-
-    // clap::App::new("rchat")
-    //     .version("0.1")
-    //     .about("An experimental chat server.")
-    //     .author("Wendell Smith")
-    //     .subcommand(server_subparser)
-    //     .get_matches();
-
-    // println!("Hello, world!");
 }
