@@ -4,13 +4,12 @@
 use rand::Rng;
 use std::collections::HashMap;
 use std::io::Read;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 use protos::chat;
 use protos::chat_grpc;
 
-use crossbeam::channel;
-use futures::{Future, Sink};
+use futures::{stream, Future, Sink};
 use structopt::StructOpt;
 
 // See https://gist.github.com/rust-play/0a90015498aaad3b1f8321364a1ff035
@@ -46,14 +45,17 @@ struct ChatMessage {
     message: String,
 }
 
-struct ServerClient {
-    name: String,
-    send: channel::Sender<ChatMessage>,
-    receive: channel::Receiver<ChatMessage>,
+impl ChatMessage {
+    fn into_sent(self) -> chat::SentMessage {
+        let mut m = chat::SentMessage::new();
+        m.set_name(self.name);
+        m.set_message(self.message);
+        return m;
+    }
 }
 
 struct ClientMap {
-    members: HashMap<u64, ServerClient>,
+    members: HashMap<u64, String>,
     ids: rand::StdRng,
 }
 
@@ -61,6 +63,63 @@ struct ClientMap {
 struct ChatServer {
     // Maps unique ID to name
     clients: Arc<Mutex<ClientMap>>,
+    messages: MessageLogWriter,
+}
+
+#[derive(Clone)]
+struct MessageLogWriter {
+    locked: Arc<(Mutex<Vec<ChatMessage>>, Condvar)>,
+}
+
+impl MessageLogWriter {
+    fn new() -> MessageLogWriter {
+        let mu = Mutex::new(vec![]);
+        let c = Condvar::new();
+        MessageLogWriter {
+            locked: Arc::new((mu, c)),
+        }
+    }
+
+    fn reader(&self) -> MessageLogReader {
+        return MessageLogReader {
+            locked: self.locked.clone(),
+            next: 0,
+            wait: false,
+        };
+    }
+
+    fn write(&self, m: ChatMessage) {
+        let &(ref lock, ref cvar) = &*self.locked;
+        let mut log = lock.lock().unwrap();
+        log.push(m);
+        cvar.notify_all();
+    }
+}
+
+#[derive(Clone)]
+struct MessageLogReader {
+    locked: Arc<(Mutex<Vec<ChatMessage>>, Condvar)>,
+    next: usize,
+    wait: bool,
+}
+
+impl Iterator for MessageLogReader {
+    type Item = ChatMessage;
+
+    fn next(&mut self) -> Option<ChatMessage> {
+        let &(ref lock, ref cvar) = &*self.locked;
+        let mut msgs = lock.lock().unwrap();
+        loop {
+            if self.next < msgs.len() {
+                break;
+            }
+            msgs = cvar.wait(msgs).unwrap();
+        }
+
+        let msg = Some(msgs[self.next].clone());
+        self.next += 1;
+        return msg;
+    }
 }
 
 impl ChatServer {
@@ -71,6 +130,7 @@ impl ChatServer {
         };
         return ChatServer {
             clients: Arc::new(Mutex::new(cm)),
+            messages: MessageLogWriter::new(),
         };
     }
 }
@@ -85,16 +145,10 @@ impl chat_grpc::Serve for ChatServer {
         println!("Registering {}", req.name);
         let mut reply = chat::Registered::new();
         let mut clients = self.clients.lock().unwrap();
-        let (tx, rx) = channel::unbounded();
-        let client = ServerClient {
-            name: req.name,
-            send: tx,
-            receive: rx,
-        };
         for _ in 1..20 {
             reply.session = clients.ids.next_u64();
             if !clients.members.contains_key(&reply.session) {
-                clients.members.insert(reply.session, client);
+                clients.members.insert(reply.session, req.name);
                 sink.success(reply);
                 return;
             }
@@ -111,37 +165,29 @@ impl chat_grpc::Serve for ChatServer {
         req: chat::Registered,
         sink: grpcio::ServerStreamingSink<chat::SentMessage>,
     ) {
-        let rx = {
-            let mut clients = self.clients.lock().unwrap();
-            match clients.members.get(&req.session) {
-                None => {
-                    sink.fail(grpcio::RpcStatus::new(
-                        grpcio::RpcStatusCode::NotFound,
-                        Some("Session id not found".to_owned()),
-                    ));
-                    return;
-                }
-                Some(s) => s.receive.clone(),
+        let clients = self.clients.lock().unwrap();
+        match clients.members.get(&req.session) {
+            None => {
+                sink.fail(grpcio::RpcStatus::new(
+                    grpcio::RpcStatusCode::NotFound,
+                    Some("Session id not found".to_owned()),
+                ));
+                return;
             }
+            Some(_name) => {}
         };
 
-        let f = |sink|{
-            match rx.recv() {
-                Some(s) => {
-                    let mut msg = chat::SentMessage::new();
-                    msg.set_message(s.message);
-                    msg.set_name(s.name);
-                    // sink.send consumes the sink, returning it when its finished.
+        let chat_iter = self
+            .messages
+            .reader()
+            .map(|m| (m.into_sent(), Default::default()));
+        let s: futures::sink::SendAll<_, _> =
+            sink.send_all(stream::iter_ok::<_, grpcio::Error>(chat_iter));
 
-                    let f = sink
-                        .send((msg, Default::default()))
-                        .map(|_| ())
-                        .map_err(|_| ());
-                    ctx.spawn(f);
-                }
-                None => break,
-            }
-        }
+        let f = s
+            .map(|_| {})
+            .map_err(|e| println!("failed to handle error: {:?}", e));
+        ctx.spawn(f);
     }
 
     fn say(
@@ -151,7 +197,7 @@ impl chat_grpc::Serve for ChatServer {
         sink: grpcio::UnarySink<chat::Empty>,
     ) {
         let clients = self.clients.lock().unwrap();
-        let member = match clients.members.get(&req.session) {
+        let name = match clients.members.get(&req.session) {
             None => {
                 sink.fail(grpcio::RpcStatus::new(
                     grpcio::RpcStatusCode::NotFound,
@@ -162,16 +208,11 @@ impl chat_grpc::Serve for ChatServer {
             Some(n) => n,
         };
         let cm = ChatMessage {
-            name: member.name.clone(),
+            name: name.clone(),
             message: req.message,
         };
-        for (&id, member) in &clients.members {
-            if id == req.session {
-                continue;
-            }
-            member.send.send(cm.clone());
-        }
-        println!("   <{}> {}", cm.name, cm.message);
+
+        self.messages.write(cm);
         sink.success(chat::Empty::new());
     }
 }
