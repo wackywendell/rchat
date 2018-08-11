@@ -11,6 +11,7 @@ name = "protos"
 path = "src/protos/mod.rs"
 
 [dependencies]
+crossbeam = "0.4"
 futures = "0.1"
 grpcio = "0.3"
 protobuf = "2.0"

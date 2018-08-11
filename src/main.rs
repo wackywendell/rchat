@@ -9,8 +9,11 @@ use std::sync::{Arc, Mutex};
 use protos::chat;
 use protos::chat_grpc;
 
-use futures::Future;
+use crossbeam::channel;
+use futures::{Future, Sink};
 use structopt::StructOpt;
+
+// See https://gist.github.com/rust-play/0a90015498aaad3b1f8321364a1ff035
 
 #[derive(StructOpt, Debug)]
 struct ServeOpt {
@@ -37,8 +40,20 @@ enum Opt {
     Client(ClientOpt),
 }
 
+#[derive(Clone)]
+struct ChatMessage {
+    name: String,
+    message: String,
+}
+
+struct ServerClient {
+    name: String,
+    send: channel::Sender<ChatMessage>,
+    receive: channel::Receiver<ChatMessage>,
+}
+
 struct ClientMap {
-    members: HashMap<u64, String>,
+    members: HashMap<u64, ServerClient>,
     ids: rand::StdRng,
 }
 
@@ -70,10 +85,16 @@ impl chat_grpc::Serve for ChatServer {
         println!("Registering {}", req.name);
         let mut reply = chat::Registered::new();
         let mut clients = self.clients.lock().unwrap();
+        let (tx, rx) = channel::unbounded();
+        let client = ServerClient {
+            name: req.name,
+            send: tx,
+            receive: rx,
+        };
         for _ in 1..20 {
             reply.session = clients.ids.next_u64();
             if !clients.members.contains_key(&reply.session) {
-                clients.members.insert(reply.session, req.name);
+                clients.members.insert(reply.session, client);
                 sink.success(reply);
                 return;
             }
@@ -86,10 +107,41 @@ impl chat_grpc::Serve for ChatServer {
 
     fn listen(
         &self,
-        _ctx: grpcio::RpcContext<'_>,
-        _req: chat::Registered,
-        _sink: grpcio::ServerStreamingSink<chat::SentMessage>,
+        ctx: grpcio::RpcContext<'_>,
+        req: chat::Registered,
+        sink: grpcio::ServerStreamingSink<chat::SentMessage>,
     ) {
+        let rx = {
+            let mut clients = self.clients.lock().unwrap();
+            match clients.members.get(&req.session) {
+                None => {
+                    sink.fail(grpcio::RpcStatus::new(
+                        grpcio::RpcStatusCode::NotFound,
+                        Some("Session id not found".to_owned()),
+                    ));
+                    return;
+                }
+                Some(s) => s.receive.clone(),
+            }
+        };
+
+        let f = |sink|{
+            match rx.recv() {
+                Some(s) => {
+                    let mut msg = chat::SentMessage::new();
+                    msg.set_message(s.message);
+                    msg.set_name(s.name);
+                    // sink.send consumes the sink, returning it when its finished.
+
+                    let f = sink
+                        .send((msg, Default::default()))
+                        .map(|_| ())
+                        .map_err(|_| ());
+                    ctx.spawn(f);
+                }
+                None => break,
+            }
+        }
     }
 
     fn say(
@@ -98,8 +150,8 @@ impl chat_grpc::Serve for ChatServer {
         req: chat::ChatMessage,
         sink: grpcio::UnarySink<chat::Empty>,
     ) {
-        let cli = self.clients.lock().unwrap();
-        let name = match cli.members.get(&req.session) {
+        let clients = self.clients.lock().unwrap();
+        let member = match clients.members.get(&req.session) {
             None => {
                 sink.fail(grpcio::RpcStatus::new(
                     grpcio::RpcStatusCode::NotFound,
@@ -109,7 +161,17 @@ impl chat_grpc::Serve for ChatServer {
             }
             Some(n) => n,
         };
-        println!("=> {} {}", name, req.message);
+        let cm = ChatMessage {
+            name: member.name.clone(),
+            message: req.message,
+        };
+        for (&id, member) in &clients.members {
+            if id == req.session {
+                continue;
+            }
+            member.send.send(cm.clone());
+        }
+        println!("   <{}> {}", cm.name, cm.message);
         sink.success(chat::Empty::new());
     }
 }
