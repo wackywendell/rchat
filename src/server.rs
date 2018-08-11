@@ -132,20 +132,22 @@ impl chat_grpc::Serve for ChatServer {
 
     fn listen(
         &self,
-        ctx: grpcio::RpcContext<'_>,
+        _ctx: grpcio::RpcContext<'_>,
         req: chat::Registered,
         sink: grpcio::ServerStreamingSink<chat::SentMessage>,
     ) {
-        let clients = self.clients.lock().unwrap();
-        match clients.members.get(&req.session) {
-            None => {
-                sink.fail(grpcio::RpcStatus::new(
-                    grpcio::RpcStatusCode::NotFound,
-                    Some("Session id not found".to_owned()),
-                ));
-                return;
+        let _name = {
+            let clients = self.clients.lock().unwrap();
+            match clients.members.get(&req.session) {
+                None => {
+                    sink.fail(grpcio::RpcStatus::new(
+                        grpcio::RpcStatusCode::NotFound,
+                        Some("Session id not found".to_owned()),
+                    ));
+                    return;
+                }
+                Some(name) => name.clone(),
             }
-            Some(_name) => {}
         };
 
         let chat_iter = self
@@ -158,7 +160,7 @@ impl chat_grpc::Serve for ChatServer {
         let f = s
             .map(|_| {})
             .map_err(|e| println!("failed to handle error: {:?}", e));
-        ctx.spawn(f);
+        std::thread::spawn(|| f.wait());
     }
 
     fn say(
@@ -178,9 +180,10 @@ impl chat_grpc::Serve for ChatServer {
             }
             Some(n) => n,
         };
+        println!("{}: {}", name, req.message.clone());
         let cm = ChatMessage {
             name: name.clone(),
-            message: req.message,
+            message: req.message.clone(),
         };
 
         self.messages.write(cm);

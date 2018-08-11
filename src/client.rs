@@ -1,5 +1,4 @@
-#![feature(rust_2018_preview)]
-#![warn(rust_2018_idioms)]
+use futures::Stream;
 
 use protos::chat;
 use protos::chat_grpc;
@@ -33,5 +32,13 @@ impl ChatClient {
         cm.session = self.id;
         cm.message = msg.trim().to_owned();
         return self.cli.say(&cm).map(|_| ());
+    }
+
+    pub fn listen(
+        &self,
+    ) -> Result<impl Stream<Item = chat::SentMessage, Error = grpcio::Error>, grpcio::Error> {
+        let mut r = chat::Registered::new();
+        r.set_session(self.id);
+        return self.cli.listen(&r);
     }
 }

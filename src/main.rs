@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use protos::chat_grpc;
 
-use futures::Future;
+use futures::{Future, Stream};
 use structopt::StructOpt;
 
 pub mod client;
@@ -47,14 +47,29 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
     let c = chat_grpc::ServeClient::new(ch);
     let cli = client::ChatClient::register(c, o.name.clone())?;
 
+    let listener = cli.listen()?;
+    std::thread::spawn(move || {
+        let r = listener
+            .for_each(|m| {
+                println!("{}: {}", m.name, m.message);
+                Ok(())
+            })
+            .wait();
+        match r {
+            Ok(()) => {}
+            Err(e) => {
+                println!("Error listening: {}", e);
+            }
+        }
+    });
+
     let mut input = String::new();
 
     loop {
         match std::io::stdin().read_line(&mut input) {
-            Ok(n) => {
-                println!("{} bytes read", n);
-                println!("- {}", input);
+            Ok(_) => {
                 cli.say(input.clone())?;
+                input.clear();
             }
             Err(error) => {
                 println!("error: {}", error);
@@ -86,22 +101,18 @@ fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {
     });
     match rx.wait() {
         Ok(()) => {}
-        Err(c) => println!("Err: {}", c),
+        Err(c) => println!("Err waiting on chan: {}", c),
     }
-    server.shutdown().wait()
+    let f = server.shutdown();
+    server.cancel_all_calls();
+    f.wait()
 }
 
 fn main() -> Result<(), grpcio::Error> {
     let opt = Opt::from_args();
 
     match opt {
-        Opt::Serve(s) => {
-            println!("Serving {:?}", s);
-            serve(&s)
-        }
-        Opt::Client(c) => {
-            println!("Client {:?}", c);
-            client(&c)
-        }
+        Opt::Serve(s) => serve(&s),
+        Opt::Client(c) => client(&c),
     }
 }
