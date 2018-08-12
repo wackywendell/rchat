@@ -27,11 +27,11 @@ impl ChatClient {
         Ok(ChatClient::new(s.session, client))
     }
 
-    pub fn say(&self, msg: String) -> Result<(), grpcio::Error> {
+    pub fn say(&self, msg: &str) -> Result<(), grpcio::Error> {
         let mut cm = chat::ChatMessage::new();
         cm.session = self.id;
         cm.message = msg.trim().to_owned();
-        return self.cli.say(&cm).map(|_| ());
+        self.cli.say(&cm).map(|_| ())
     }
 
     pub fn listen(
@@ -39,6 +39,6 @@ impl ChatClient {
     ) -> Result<impl Stream<Item = chat::SentMessage, Error = grpcio::Error>, grpcio::Error> {
         let mut r = chat::Registered::new();
         r.set_session(self.id);
-        return self.cli.listen(&r);
+        self.cli.listen(&r)
     }
 }

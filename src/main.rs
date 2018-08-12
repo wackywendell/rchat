@@ -67,7 +67,7 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
     loop {
         match std::io::stdin().read_line(&mut input) {
             Ok(_) => {
-                cli.say(input.clone())?;
+                cli.say(&input)?;
                 input.clear();
             }
             Err(error) => {
@@ -77,7 +77,7 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {

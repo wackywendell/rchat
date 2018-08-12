@@ -2,6 +2,7 @@
 #![warn(rust_2018_idioms)]
 
 use rand::Rng;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -21,7 +22,7 @@ impl ChatMessage {
         let mut m = chat::SentMessage::new();
         m.set_name(self.name);
         m.set_message(self.message);
-        return m;
+        m
     }
 }
 
@@ -40,11 +41,11 @@ impl MessageLogWriter {
     }
 
     fn reader(&self) -> MessageLogReader {
-        return MessageLogReader {
+        MessageLogReader {
             locked: self.locked.clone(),
             next: 0,
             wait: false,
-        };
+        }
     }
 
     fn write(&self, m: ChatMessage) {
@@ -77,7 +78,7 @@ impl Iterator for MessageLogReader {
 
         let msg = Some(msgs[self.next].clone());
         self.next += 1;
-        return msg;
+        msg
     }
 }
 
@@ -99,10 +100,16 @@ impl ChatServer {
             members: HashMap::new(),
             ids: rand::StdRng::new().unwrap(),
         };
-        return ChatServer {
+        ChatServer {
             clients: Arc::new(Mutex::new(cm)),
             messages: MessageLogWriter::new(),
-        };
+        }
+    }
+}
+
+impl Default for ChatServer {
+    fn default() -> Self {
+        ChatServer::new()
     }
 }
 
@@ -118,10 +125,12 @@ impl chat_grpc::Chat for ChatServer {
         let mut clients = self.clients.lock().unwrap();
         for _ in 1..20 {
             reply.session = clients.ids.next_u64();
-            if !clients.members.contains_key(&reply.session) {
-                clients.members.insert(reply.session, req.name);
-                sink.success(reply);
-                return;
+            match clients.members.entry(reply.session) {
+                Entry::Vacant(v) => {
+                    v.insert(req.name);
+                    break;
+                }
+                Entry::Occupied(_) => continue,
             }
         }
         sink.fail(grpcio::RpcStatus::new(
