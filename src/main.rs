@@ -1,9 +1,6 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
-use std::io::Read;
-use std::sync::Arc;
-
 use protos::chat_grpc;
 
 use futures::{Future, Stream};
@@ -39,15 +36,11 @@ enum Opt {
     Client(ClientOpt),
 }
 
-fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
-    let env = Arc::new(grpcio::Environment::new(2));
-    let cb = grpcio::ChannelBuilder::new(env);
-    let addr = format!("{}:{}", "127.0.0.1", o.port);
-    let ch = cb.connect(&addr);
-    let c = chat_grpc::ChatClient::new(ch);
-    let cli = client::ChatClient::register(c, o.name.clone())?;
+fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
+    let client = chat_grpc::ChatClient::new_plain("::1", o.port, Default::default())?;
+    let cli = client::ChatClient::register(client, o.name.clone())?;
 
-    let listener = cli.listen()?;
+    let listener = cli.listen();
     std::thread::spawn(move || {
         let r = listener
             .for_each(|m| {
@@ -80,34 +73,23 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
     return Ok(());
 }
 
-fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {
-    let env = Arc::new(grpcio::Environment::new(2));
-    let instance = server::ChatServer::new();
-    let service = chat_grpc::create_chat(instance);
-    let mut server = grpcio::ServerBuilder::new(env)
-        .register_service(service)
-        .bind("127.0.0.1", s.port)
-        .build()?;
-    server.start();
-    for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+fn serve(s: &ServeOpt) -> Result<(), grpc::Error> {
+    let handler = server::ChatServer::new();
+    let mut sv = grpc::ServerBuilder::new_plain();
+    sv.http.set_port(s.port);
+    sv.add_service(chat_grpc::ChatServer::new_service_def(handler));
+    sv.http.set_cpu_pool_threads(4);
+    let server = sv.build().expect("server");
+
+    println!("Chat server started on port {}", s.port);
+
+    while server.is_alive() {
+        std::thread::park();
     }
-    let (tx, rx) = futures::oneshot();
-    std::thread::spawn(move || {
-        println!("Press ENTER to exit...");
-        let _ = std::io::stdin().read(&mut [0]).unwrap();
-        tx.send(())
-    });
-    match rx.wait() {
-        Ok(()) => {}
-        Err(c) => println!("Err waiting on chan: {}", c),
-    }
-    let f = server.shutdown();
-    server.cancel_all_calls();
-    f.wait()
+    return Ok(());
 }
 
-fn main() -> Result<(), grpcio::Error> {
+fn main() -> Result<(), grpc::Error> {
     let opt = Opt::from_args();
 
     match opt {

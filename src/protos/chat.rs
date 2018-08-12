@@ -864,15 +864,15 @@ impl ::protobuf::reflect::ProtobufValue for Empty {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\nchat.proto\"\"\n\x0cRegistration\x12\x12\n\x04name\x18\x01\x20\x01(\
-    \tR\x04name\"&\n\nRegistered\x12\x18\n\x07session\x18\x01\x20\x01(\x04R\
-    \x07session\";\n\x0bSentMessage\x12\x12\n\x04name\x18\x01\x20\x01(\tR\
-    \x04name\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\"A\n\x0bCha\
-    tMessage\x12\x18\n\x07session\x18\x01\x20\x01(\x04R\x07session\x12\x18\n\
-    \x07message\x18\x02\x20\x01(\tR\x07message\"\x07\n\x05Empty2r\n\x04Chat\
-    \x12&\n\x08Register\x12\r.Registration\x1a\x0b.Registered\x12%\n\x06List\
-    en\x12\x0b.Registered\x1a\x0c.SentMessage0\x01\x12\x1b\n\x03Say\x12\x0c.\
-    ChatMessage\x1a\x06.Emptyb\x06proto3\
+    \n\x15src/protos/chat.proto\"\"\n\x0cRegistration\x12\x12\n\x04name\x18\
+    \x01\x20\x01(\tR\x04name\"&\n\nRegistered\x12\x18\n\x07session\x18\x01\
+    \x20\x01(\x04R\x07session\";\n\x0bSentMessage\x12\x12\n\x04name\x18\x01\
+    \x20\x01(\tR\x04name\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\
+    \"A\n\x0bChatMessage\x12\x18\n\x07session\x18\x01\x20\x01(\x04R\x07sessi\
+    on\x12\x18\n\x07message\x18\x02\x20\x01(\tR\x07message\"\x07\n\x05Empty2\
+    r\n\x04Chat\x12&\n\x08Register\x12\r.Registration\x1a\x0b.Registered\x12\
+    %\n\x06Listen\x12\x0b.Registered\x1a\x0c.SentMessage0\x01\x12\x1b\n\x03S\
+    ay\x12\x0c.ChatMessage\x1a\x06.Emptyb\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {
