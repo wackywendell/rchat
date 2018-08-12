@@ -30,21 +30,20 @@ impl ChatClient {
         }
     }
 
-    pub fn say(&self, msg: String) -> Result<(), grpc::Error> {
+    pub fn say(&self, msg: &str) -> Result<(), grpc::Error> {
         let mut cm = chat::ChatMessage::new();
         cm.session = self.id;
         cm.message = msg.trim().to_owned();
-        return self
-            .cli
+        self.cli
             .say(grpc::RequestOptions::new(), cm)
             .wait()
-            .map(|_| ());
+            .map(|_| ())
     }
 
     pub fn listen(&self) -> impl Stream<Item = chat::SentMessage, Error = grpc::Error> {
         let mut r = chat::Registered::new();
         r.set_session(self.id);
         let stream = self.cli.listen(grpc::RequestOptions::new(), r);
-        return stream.drop_metadata();
+        stream.drop_metadata()
     }
 }

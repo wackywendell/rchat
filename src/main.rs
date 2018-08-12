@@ -60,7 +60,7 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
     loop {
         match std::io::stdin().read_line(&mut input) {
             Ok(_) => {
-                cli.say(input.clone())?;
+                cli.say(&input)?;
                 input.clear();
             }
             Err(error) => {
@@ -70,7 +70,7 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn serve(s: &ServeOpt) -> Result<(), grpc::Error> {
@@ -86,7 +86,7 @@ fn serve(s: &ServeOpt) -> Result<(), grpc::Error> {
     while server.is_alive() {
         std::thread::park();
     }
-    return Ok(());
+    Ok(())
 }
 
 fn main() -> Result<(), grpc::Error> {
