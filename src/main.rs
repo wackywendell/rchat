@@ -44,7 +44,7 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
     let cb = grpcio::ChannelBuilder::new(env);
     let addr = format!("{}:{}", "127.0.0.1", o.port);
     let ch = cb.connect(&addr);
-    let c = chat_grpc::ServeClient::new(ch);
+    let c = chat_grpc::ChatClient::new(ch);
     let cli = client::ChatClient::register(c, o.name.clone())?;
 
     let listener = cli.listen()?;
@@ -53,8 +53,7 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
             .for_each(|m| {
                 println!("{}: {}", m.name, m.message);
                 Ok(())
-            })
-            .wait();
+            }).wait();
         match r {
             Ok(()) => {}
             Err(e) => {
@@ -84,7 +83,7 @@ fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
 fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {
     let env = Arc::new(grpcio::Environment::new(2));
     let instance = server::ChatServer::new();
-    let service = chat_grpc::create_serve(instance);
+    let service = chat_grpc::create_chat(instance);
     let mut server = grpcio::ServerBuilder::new(env)
         .register_service(service)
         .bind("127.0.0.1", s.port)

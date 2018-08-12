@@ -106,7 +106,7 @@ impl ChatServer {
     }
 }
 
-impl chat_grpc::Serve for ChatServer {
+impl chat_grpc::Chat for ChatServer {
     fn register(
         &self,
         _ctx: grpcio::RpcContext<'_>,

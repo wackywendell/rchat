@@ -21,7 +21,7 @@ message ChatMessage {
 
 message Empty {}
 
-service Serve {
+service Chat {
     rpc Register (Registration) returns (Registered);
     rpc Listen (Registered) returns (stream SentMessage);
     rpc Say (ChatMessage) returns (Empty);

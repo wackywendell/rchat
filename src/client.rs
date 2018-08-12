@@ -5,11 +5,11 @@ use protos::chat_grpc;
 
 pub struct ChatClient {
     id: u64,
-    cli: chat_grpc::ServeClient,
+    cli: chat_grpc::ChatClient,
 }
 
 impl ChatClient {
-    pub fn new(session: u64, client: chat_grpc::ServeClient) -> ChatClient {
+    pub fn new(session: u64, client: chat_grpc::ChatClient) -> ChatClient {
         ChatClient {
             id: session,
             cli: client,
@@ -17,7 +17,7 @@ impl ChatClient {
     }
 
     pub fn register(
-        client: chat_grpc::ServeClient,
+        client: chat_grpc::ChatClient,
         name: String,
     ) -> Result<ChatClient, grpcio::Error> {
         let mut r = chat::Registration::new();
