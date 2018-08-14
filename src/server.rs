@@ -124,8 +124,8 @@ impl chat_grpc::Chat for ChatServer {
             reply.session = clients.ids.next_u64();
             match clients.members.entry(reply.session) {
                 Entry::Vacant(v) => {
-                    v.insert(req.name);
-                    break;
+                    v.insert(req.name.clone());
+                    return grpc::SingleResponse::completed(reply);
                 }
                 Entry::Occupied(_) => continue,
             }

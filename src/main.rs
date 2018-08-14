@@ -41,35 +41,31 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
     let cli = client::ChatClient::register(client, o.name.clone())?;
 
     let listener = cli.listen();
-    std::thread::spawn(move || {
-        let r = listener
-            .for_each(|m| {
-                println!("{}: {}", m.name, m.message);
-                Ok(())
-            }).wait();
-        match r {
-            Ok(()) => {}
-            Err(e) => {
-                println!("Error listening: {}", e);
-            }
-        }
+
+    let listen_task = listener
+        .map_err(|e| println!("Error listening: {}", e))
+        .for_each(move |m| {
+            println!("{}: {}", m.name, m.message);
+            Ok(())
+        });
+
+    let buffed = std::io::BufReader::new(tokio::io::stdin());
+    let line_by_line = tokio::io::lines(buffed);
+    let drop_errs = line_by_line.map_err(|e| println!("error reading: {}", e));
+    let say_lines = drop_errs.for_each(move |l| {
+        match cli.say(&l) {
+            Ok(_) => (),
+            Err(e) => println!("error saying: {}", e),
+        };
+        Ok(())
     });
+    let read_task = say_lines;
 
-    let mut input = String::new();
+    let boxed_listen: Box<dyn Future<Item = (), Error = ()> + Send> = Box::new(listen_task);
+    let boxed_read: Box<dyn Future<Item = (), Error = ()> + Send> = Box::new(read_task);
 
-    loop {
-        match std::io::stdin().read_line(&mut input) {
-            Ok(_) => {
-                cli.say(&input)?;
-                input.clear();
-            }
-            Err(error) => {
-                println!("error: {}", error);
-                break;
-            }
-        }
-    }
-
+    let threads = futures::future::join_all(vec![boxed_listen, boxed_read]).map(|_| ());
+    tokio::run(threads);
     Ok(())
 }
 
