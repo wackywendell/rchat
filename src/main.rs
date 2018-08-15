@@ -3,7 +3,7 @@
 
 use protos::chat_grpc;
 
-use futures::{Future, Stream};
+use futures::Stream;
 use structopt::StructOpt;
 
 pub mod client;
@@ -62,8 +62,8 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
 
     //let merged = listen_stream.select(read_stream).fold((), |(), v| v);
     let merged = futures::future::lazy(|| {
-        tokio::spawn(listen_stream.fold((), |_, v| v));
-        tokio::spawn(read_stream.fold((), |_, v| v));
+        tokio::spawn(listen_stream.fold((), |(), v: Result<(), ()>| v));
+        tokio::spawn(read_stream.fold((), |(), v: Result<(), ()>| v));
         futures::future::empty::<(), ()>()
     });
 
