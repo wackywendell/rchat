@@ -1,10 +1,15 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
-use protos::chat_grpc;
-
-use futures::Stream;
+use futures::{future, Stream};
+use grpc::{Error, ServerBuilder};
 use structopt::StructOpt;
+
+use protos::chat_grpc::ChatClient as GrpcClient;
+use protos::chat_grpc::ChatServer as GrpcServer;
+
+use crate::client::ChatClient;
+use crate::server::ChatServer;
 
 pub mod client;
 pub mod server;
@@ -36,9 +41,9 @@ enum Opt {
     Client(ClientOpt),
 }
 
-fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
-    let client = chat_grpc::ChatClient::new_plain("::1", o.port, Default::default())?;
-    let cli = client::ChatClient::register(client, o.name.clone())?;
+fn client(o: &ClientOpt) -> Result<(), Error> {
+    let client = GrpcClient::new_plain("::1", o.port, Default::default())?;
+    let cli = ChatClient::register(client, o.name.clone())?;
 
     let listener = cli.listen();
 
@@ -61,21 +66,21 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
     });
 
     //let merged = listen_stream.select(read_stream).fold((), |(), v| v);
-    let merged = futures::future::lazy(|| {
+    let merged = future::lazy(|| {
         tokio::spawn(listen_stream.fold((), |(), v: Result<(), ()>| v));
         tokio::spawn(read_stream.fold((), |(), v: Result<(), ()>| v));
-        futures::future::empty::<(), ()>()
+        future::empty::<(), ()>()
     });
 
     tokio::run(merged);
     Ok(())
 }
 
-fn serve(s: &ServeOpt) -> Result<(), grpc::Error> {
-    let handler = server::ChatServer::new();
-    let mut sv = grpc::ServerBuilder::new_plain();
+fn serve(s: &ServeOpt) -> Result<(), Error> {
+    let handler = ChatServer::new();
+    let mut sv = ServerBuilder::new_plain();
     sv.http.set_port(s.port);
-    sv.add_service(chat_grpc::ChatServer::new_service_def(handler));
+    sv.add_service(GrpcServer::new_service_def(handler));
     sv.http.set_cpu_pool_threads(4);
     let server = sv.build().expect("server");
 
@@ -87,7 +92,7 @@ fn serve(s: &ServeOpt) -> Result<(), grpc::Error> {
     Ok(())
 }
 
-fn main() -> Result<(), grpc::Error> {
+fn main() -> Result<(), Error> {
     let opt = Opt::from_args();
 
     match opt {

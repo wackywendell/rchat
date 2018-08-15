@@ -1,13 +1,16 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
-use rand::Rng;
+use rand::{Rng, StdRng};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
 
-use protos::chat;
-use protos::chat_grpc;
+use grpc::{Error, RequestOptions, SingleResponse, StreamingResponse};
+
+use protos::chat::ChatMessage as ProtoMessage;
+use protos::chat::{Empty, Registered, Registration, SentMessage};
+use protos::chat_grpc::Chat;
 
 #[derive(Clone)]
 struct ChatMessage {
@@ -16,8 +19,8 @@ struct ChatMessage {
 }
 
 impl ChatMessage {
-    fn into_sent(self) -> chat::SentMessage {
-        let mut m = chat::SentMessage::new();
+    fn into_sent(self) -> SentMessage {
+        let mut m = SentMessage::new();
         m.set_name(self.name);
         m.set_message(self.message);
         m
@@ -82,7 +85,7 @@ impl Iterator for MessageLogReader {
 
 struct ClientMap {
     members: HashMap<u64, String>,
-    ids: rand::StdRng,
+    ids: StdRng,
 }
 
 #[derive(Clone)]
@@ -96,7 +99,7 @@ impl ChatServer {
     pub fn new() -> ChatServer {
         let cm = ClientMap {
             members: HashMap::new(),
-            ids: rand::StdRng::new().unwrap(),
+            ids: StdRng::new().unwrap(),
         };
         ChatServer {
             clients: Arc::new(Mutex::new(cm)),
@@ -111,57 +114,45 @@ impl Default for ChatServer {
     }
 }
 
-impl chat_grpc::Chat for ChatServer {
-    fn register(
-        &self,
-        _m: grpc::RequestOptions,
-        req: chat::Registration,
-    ) -> grpc::SingleResponse<chat::Registered> {
+impl Chat for ChatServer {
+    fn register(&self, _m: RequestOptions, req: Registration) -> SingleResponse<Registered> {
         println!("Registering {}", req.name);
-        let mut reply = chat::Registered::new();
+        let mut reply = Registered::new();
         let mut clients = self.clients.lock().unwrap();
         for _ in 1..20 {
             reply.session = clients.ids.next_u64();
             match clients.members.entry(reply.session) {
                 Entry::Vacant(v) => {
                     v.insert(req.name.clone());
-                    return grpc::SingleResponse::completed(reply);
+                    return SingleResponse::completed(reply);
                 }
                 Entry::Occupied(_) => continue,
             }
         }
 
-        grpc::SingleResponse::err(grpc::Error::Other("Ran out of sessions"))
+        SingleResponse::err(Error::Other("Ran out of sessions"))
     }
 
-    fn listen(
-        &self,
-        _m: grpc::RequestOptions,
-        req: chat::Registered,
-    ) -> grpc::StreamingResponse<chat::SentMessage> {
+    fn listen(&self, _m: RequestOptions, req: Registered) -> StreamingResponse<SentMessage> {
         let _name = {
             let clients = self.clients.lock().unwrap();
             match clients.members.get(&req.session) {
                 None => {
-                    return grpc::StreamingResponse::err(grpc::Error::Other("Session id not found"));
+                    return StreamingResponse::err(Error::Other("Session id not found"));
                 }
                 Some(name) => name.clone(),
             }
         };
 
         let chat_iter = self.messages.reader().map(|m| m.into_sent());
-        grpc::StreamingResponse::iter(chat_iter)
+        StreamingResponse::iter(chat_iter)
     }
 
-    fn say(
-        &self,
-        _m: grpc::RequestOptions,
-        req: chat::ChatMessage,
-    ) -> grpc::SingleResponse<chat::Empty> {
+    fn say(&self, _m: RequestOptions, req: ProtoMessage) -> SingleResponse<Empty> {
         let clients = self.clients.lock().unwrap();
         let name = match clients.members.get(&req.session) {
             None => {
-                return grpc::SingleResponse::err(grpc::Error::Other("Session id not found"));
+                return SingleResponse::err(Error::Other("Session id not found"));
             }
             Some(n) => n,
         };
@@ -172,6 +163,6 @@ impl chat_grpc::Chat for ChatServer {
         };
 
         self.messages.write(cm);
-        grpc::SingleResponse::completed(chat::Empty::new())
+        SingleResponse::completed(Empty::new())
     }
 }
