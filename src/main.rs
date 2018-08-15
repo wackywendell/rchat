@@ -42,9 +42,9 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
 
     let listener = cli.listen();
 
-    let listen_task = listener
+    let listen_stream = listener
         .map_err(|e| println!("Error listening: {}", e))
-        .for_each(move |m| {
+        .map(move |m| {
             println!("{}: {}", m.name, m.message);
             Ok(())
         });
@@ -52,20 +52,22 @@ fn client(o: &ClientOpt) -> Result<(), grpc::Error> {
     let buffed = std::io::BufReader::new(tokio::io::stdin());
     let line_by_line = tokio::io::lines(buffed);
     let drop_errs = line_by_line.map_err(|e| println!("error reading: {}", e));
-    let say_lines = drop_errs.for_each(move |l| {
+    let read_stream = drop_errs.map(move |l| {
         match cli.say(&l) {
             Ok(_) => (),
             Err(e) => println!("error saying: {}", e),
         };
         Ok(())
     });
-    let read_task = say_lines;
 
-    let boxed_listen: Box<dyn Future<Item = (), Error = ()> + Send> = Box::new(listen_task);
-    let boxed_read: Box<dyn Future<Item = (), Error = ()> + Send> = Box::new(read_task);
+    //let merged = listen_stream.select(read_stream).fold((), |(), v| v);
+    let merged = futures::future::lazy(|| {
+        tokio::spawn(listen_stream.fold((), |_, v| v));
+        tokio::spawn(read_stream.fold((), |_, v| v));
+        futures::future::empty::<(), ()>()
+    });
 
-    let threads = futures::future::join_all(vec![boxed_listen, boxed_read]).map(|_| ());
-    tokio::run(threads);
+    tokio::run(merged);
     Ok(())
 }
 
