@@ -67,7 +67,7 @@ impl ::protobuf::Message for Registration {
         true
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
@@ -94,7 +94,7 @@ impl ::protobuf::Message for Registration {
         my_size
     }
 
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         if !self.name.is_empty() {
             os.write_string(1, &self.name)?;
         }
@@ -114,13 +114,13 @@ impl ::protobuf::Message for Registration {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
     }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
     }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
         self
     }
 
@@ -173,13 +173,13 @@ impl ::protobuf::Clear for Registration {
 }
 
 impl ::std::fmt::Debug for Registration {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
 impl ::protobuf::reflect::ProtobufValue for Registration {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef<'_> {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
@@ -219,7 +219,7 @@ impl ::protobuf::Message for Registered {
         true
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
@@ -250,7 +250,7 @@ impl ::protobuf::Message for Registered {
         my_size
     }
 
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         if self.session != 0 {
             os.write_uint64(1, self.session)?;
         }
@@ -270,13 +270,13 @@ impl ::protobuf::Message for Registered {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
     }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
     }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
         self
     }
 
@@ -329,13 +329,13 @@ impl ::protobuf::Clear for Registered {
 }
 
 impl ::std::fmt::Debug for Registered {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
 impl ::protobuf::reflect::ProtobufValue for Registered {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef<'_> {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
@@ -413,7 +413,7 @@ impl ::protobuf::Message for SentMessage {
         true
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
@@ -446,7 +446,7 @@ impl ::protobuf::Message for SentMessage {
         my_size
     }
 
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         if !self.name.is_empty() {
             os.write_string(1, &self.name)?;
         }
@@ -469,13 +469,13 @@ impl ::protobuf::Message for SentMessage {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
     }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
     }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
         self
     }
 
@@ -534,13 +534,13 @@ impl ::protobuf::Clear for SentMessage {
 }
 
 impl ::std::fmt::Debug for SentMessage {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
 impl ::protobuf::reflect::ProtobufValue for SentMessage {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef<'_> {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
@@ -607,7 +607,7 @@ impl ::protobuf::Message for ChatMessage {
         true
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
@@ -644,7 +644,7 @@ impl ::protobuf::Message for ChatMessage {
         my_size
     }
 
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         if self.session != 0 {
             os.write_uint64(1, self.session)?;
         }
@@ -667,13 +667,13 @@ impl ::protobuf::Message for ChatMessage {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
     }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
     }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
         self
     }
 
@@ -732,13 +732,13 @@ impl ::protobuf::Clear for ChatMessage {
 }
 
 impl ::std::fmt::Debug for ChatMessage {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
 impl ::protobuf::reflect::ProtobufValue for ChatMessage {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef<'_> {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
@@ -761,7 +761,7 @@ impl ::protobuf::Message for Empty {
         true
     }
 
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
@@ -782,7 +782,7 @@ impl ::protobuf::Message for Empty {
         my_size
     }
 
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -799,13 +799,13 @@ impl ::protobuf::Message for Empty {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &::std::any::Any {
-        self as &::std::any::Any
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
     }
-    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
-        self as &mut ::std::any::Any
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
     }
-    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
         self
     }
 
@@ -852,13 +852,13 @@ impl ::protobuf::Clear for Empty {
 }
 
 impl ::std::fmt::Debug for Empty {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
 impl ::protobuf::reflect::ProtobufValue for Empty {
-    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef<'_> {
         ::protobuf::reflect::ProtobufValueRef::Message(self)
     }
 }
