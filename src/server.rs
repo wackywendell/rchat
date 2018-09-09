@@ -1,15 +1,16 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
-use rand::Rng;
+use rand::{Rng, StdRng};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
 
-use protos::chat;
-use protos::chat_grpc;
+use grpc::{Error, RequestOptions, SingleResponse, StreamingResponse};
 
-use futures::{stream, Future, Sink};
+use protos::chat::ChatMessage as ProtoMessage;
+use protos::chat::{Empty, Registered, Registration, SentMessage};
+use protos::chat_grpc::Chat;
 
 #[derive(Clone)]
 struct ChatMessage {
@@ -18,8 +19,8 @@ struct ChatMessage {
 }
 
 impl ChatMessage {
-    fn into_sent(self) -> chat::SentMessage {
-        let mut m = chat::SentMessage::new();
+    fn into_sent(self) -> SentMessage {
+        let mut m = SentMessage::new();
         m.set_name(self.name);
         m.set_message(self.message);
         m
@@ -84,7 +85,7 @@ impl Iterator for MessageLogReader {
 
 struct ClientMap {
     members: HashMap<u64, String>,
-    ids: rand::StdRng,
+    ids: StdRng,
 }
 
 #[derive(Clone)]
@@ -98,7 +99,7 @@ impl ChatServer {
     pub fn new() -> ChatServer {
         let cm = ClientMap {
             members: HashMap::new(),
-            ids: rand::StdRng::new().unwrap(),
+            ids: StdRng::new().unwrap(),
         };
         ChatServer {
             clients: Arc::new(Mutex::new(cm)),
@@ -113,79 +114,45 @@ impl Default for ChatServer {
     }
 }
 
-impl chat_grpc::Chat for ChatServer {
-    fn register(
-        &self,
-        _ctx: grpcio::RpcContext<'_>,
-        req: chat::Registration,
-        sink: grpcio::UnarySink<chat::Registered>,
-    ) {
+impl Chat for ChatServer {
+    fn register(&self, _m: RequestOptions, req: Registration) -> SingleResponse<Registered> {
         println!("Registering {}", req.name);
-        let mut reply = chat::Registered::new();
+        let mut reply = Registered::new();
         let mut clients = self.clients.lock().unwrap();
         for _ in 1..20 {
             reply.session = clients.ids.next_u64();
             match clients.members.entry(reply.session) {
                 Entry::Vacant(v) => {
-                    v.insert(req.name);
-                    break;
+                    v.insert(req.name.clone());
+                    return SingleResponse::completed(reply);
                 }
                 Entry::Occupied(_) => continue,
             }
         }
-        sink.fail(grpcio::RpcStatus::new(
-            grpcio::RpcStatusCode::ResourceExhausted,
-            Some("Ran out of sessions".to_owned()),
-        ));
+
+        SingleResponse::err(Error::Other("Ran out of sessions"))
     }
 
-    fn listen(
-        &self,
-        _ctx: grpcio::RpcContext<'_>,
-        req: chat::Registered,
-        sink: grpcio::ServerStreamingSink<chat::SentMessage>,
-    ) {
+    fn listen(&self, _m: RequestOptions, req: Registered) -> StreamingResponse<SentMessage> {
         let _name = {
             let clients = self.clients.lock().unwrap();
             match clients.members.get(&req.session) {
                 None => {
-                    sink.fail(grpcio::RpcStatus::new(
-                        grpcio::RpcStatusCode::NotFound,
-                        Some("Session id not found".to_owned()),
-                    ));
-                    return;
+                    return StreamingResponse::err(Error::Other("Session id not found"));
                 }
                 Some(name) => name.clone(),
             }
         };
 
-        let chat_iter = self
-            .messages
-            .reader()
-            .map(|m| (m.into_sent(), Default::default()));
-        let s: futures::sink::SendAll<_, _> =
-            sink.send_all(stream::iter_ok::<_, grpcio::Error>(chat_iter));
-
-        let f = s
-            .map(|_| {})
-            .map_err(|e| println!("failed to handle error: {:?}", e));
-        std::thread::spawn(|| f.wait());
+        let chat_iter = self.messages.reader().map(|m| m.into_sent());
+        StreamingResponse::iter(chat_iter)
     }
 
-    fn say(
-        &self,
-        _ctx: grpcio::RpcContext<'_>,
-        req: chat::ChatMessage,
-        sink: grpcio::UnarySink<chat::Empty>,
-    ) {
+    fn say(&self, _m: RequestOptions, req: ProtoMessage) -> SingleResponse<Empty> {
         let clients = self.clients.lock().unwrap();
         let name = match clients.members.get(&req.session) {
             None => {
-                sink.fail(grpcio::RpcStatus::new(
-                    grpcio::RpcStatusCode::NotFound,
-                    Some("Session not found".to_owned()),
-                ));
-                return;
+                return SingleResponse::err(Error::Other("Session id not found"));
             }
             Some(n) => n,
         };
@@ -196,6 +163,6 @@ impl chat_grpc::Chat for ChatServer {
         };
 
         self.messages.write(cm);
-        sink.success(chat::Empty::new());
+        SingleResponse::completed(Empty::new())
     }
 }

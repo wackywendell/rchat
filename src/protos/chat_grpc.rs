@@ -18,101 +18,124 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
-const METHOD_CHAT_REGISTER: ::grpcio::Method<super::chat::Registration, super::chat::Registered> = ::grpcio::Method {
-    ty: ::grpcio::MethodType::Unary,
-    name: "/Chat/Register",
-    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-};
 
-const METHOD_CHAT_LISTEN: ::grpcio::Method<super::chat::Registered, super::chat::SentMessage> = ::grpcio::Method {
-    ty: ::grpcio::MethodType::ServerStreaming,
-    name: "/Chat/Listen",
-    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-};
+// interface
 
-const METHOD_CHAT_SAY: ::grpcio::Method<super::chat::ChatMessage, super::chat::Empty> = ::grpcio::Method {
-    ty: ::grpcio::MethodType::Unary,
-    name: "/Chat/Say",
-    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
-};
+pub trait Chat {
+    fn register(&self, o: ::grpc::RequestOptions, p: super::chat::Registration) -> ::grpc::SingleResponse<super::chat::Registered>;
+
+    fn listen(&self, o: ::grpc::RequestOptions, p: super::chat::Registered) -> ::grpc::StreamingResponse<super::chat::SentMessage>;
+
+    fn say(&self, o: ::grpc::RequestOptions, p: super::chat::ChatMessage) -> ::grpc::SingleResponse<super::chat::Empty>;
+}
+
+// client
 
 pub struct ChatClient {
-    client: ::grpcio::Client,
+    grpc_client: ::grpc::Client,
+    method_Register: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::chat::Registration, super::chat::Registered>>,
+    method_Listen: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::chat::Registered, super::chat::SentMessage>>,
+    method_Say: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::chat::ChatMessage, super::chat::Empty>>,
 }
 
 impl ChatClient {
-    pub fn new(channel: ::grpcio::Channel) -> Self {
+    pub fn with_client(grpc_client: ::grpc::Client) -> Self {
         ChatClient {
-            client: ::grpcio::Client::new(channel),
+            grpc_client: grpc_client,
+            method_Register: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                name: "/Chat/Register".to_string(),
+                streaming: ::grpc::rt::GrpcStreaming::Unary,
+                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+            }),
+            method_Listen: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                name: "/Chat/Listen".to_string(),
+                streaming: ::grpc::rt::GrpcStreaming::ServerStreaming,
+                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+            }),
+            method_Say: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                name: "/Chat/Say".to_string(),
+                streaming: ::grpc::rt::GrpcStreaming::Unary,
+                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+            }),
         }
     }
 
-    pub fn register_opt(&self, req: &super::chat::Registration, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::chat::Registered> {
-        self.client.unary_call(&METHOD_CHAT_REGISTER, req, opt)
+    pub fn new_plain(host: &str, port: u16, conf: ::grpc::ClientConf) -> ::grpc::Result<Self> {
+        ::grpc::Client::new_plain(host, port, conf).map(|c| {
+            ChatClient::with_client(c)
+        })
     }
-
-    pub fn register(&self, req: &super::chat::Registration) -> ::grpcio::Result<super::chat::Registered> {
-        self.register_opt(req, ::grpcio::CallOption::default())
-    }
-
-    pub fn register_async_opt(&self, req: &super::chat::Registration, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Registered>> {
-        self.client.unary_call_async(&METHOD_CHAT_REGISTER, req, opt)
-    }
-
-    pub fn register_async(&self, req: &super::chat::Registration) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Registered>> {
-        self.register_async_opt(req, ::grpcio::CallOption::default())
-    }
-
-    pub fn listen_opt(&self, req: &super::chat::Registered, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<super::chat::SentMessage>> {
-        self.client.server_streaming(&METHOD_CHAT_LISTEN, req, opt)
-    }
-
-    pub fn listen(&self, req: &super::chat::Registered) -> ::grpcio::Result<::grpcio::ClientSStreamReceiver<super::chat::SentMessage>> {
-        self.listen_opt(req, ::grpcio::CallOption::default())
-    }
-
-    pub fn say_opt(&self, req: &super::chat::ChatMessage, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::chat::Empty> {
-        self.client.unary_call(&METHOD_CHAT_SAY, req, opt)
-    }
-
-    pub fn say(&self, req: &super::chat::ChatMessage) -> ::grpcio::Result<super::chat::Empty> {
-        self.say_opt(req, ::grpcio::CallOption::default())
-    }
-
-    pub fn say_async_opt(&self, req: &super::chat::ChatMessage, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Empty>> {
-        self.client.unary_call_async(&METHOD_CHAT_SAY, req, opt)
-    }
-
-    pub fn say_async(&self, req: &super::chat::ChatMessage) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::chat::Empty>> {
-        self.say_async_opt(req, ::grpcio::CallOption::default())
-    }
-    pub fn spawn<F>(&self, f: F) where F: ::futures::Future<Item = (), Error = ()> + Send + 'static {
-        self.client.spawn(f)
+    pub fn new_tls<C : ::tls_api::TlsConnector>(host: &str, port: u16, conf: ::grpc::ClientConf) -> ::grpc::Result<Self> {
+        ::grpc::Client::new_tls::<C>(host, port, conf).map(|c| {
+            ChatClient::with_client(c)
+        })
     }
 }
 
-pub trait Chat {
-    fn register(&self, ctx: ::grpcio::RpcContext, req: super::chat::Registration, sink: ::grpcio::UnarySink<super::chat::Registered>);
-    fn listen(&self, ctx: ::grpcio::RpcContext, req: super::chat::Registered, sink: ::grpcio::ServerStreamingSink<super::chat::SentMessage>);
-    fn say(&self, ctx: ::grpcio::RpcContext, req: super::chat::ChatMessage, sink: ::grpcio::UnarySink<super::chat::Empty>);
+impl Chat for ChatClient {
+    fn register(&self, o: ::grpc::RequestOptions, p: super::chat::Registration) -> ::grpc::SingleResponse<super::chat::Registered> {
+        self.grpc_client.call_unary(o, p, self.method_Register.clone())
+    }
+
+    fn listen(&self, o: ::grpc::RequestOptions, p: super::chat::Registered) -> ::grpc::StreamingResponse<super::chat::SentMessage> {
+        self.grpc_client.call_server_streaming(o, p, self.method_Listen.clone())
+    }
+
+    fn say(&self, o: ::grpc::RequestOptions, p: super::chat::ChatMessage) -> ::grpc::SingleResponse<super::chat::Empty> {
+        self.grpc_client.call_unary(o, p, self.method_Say.clone())
+    }
 }
 
-pub fn create_chat<S: Chat + Send + Clone + 'static>(s: S) -> ::grpcio::Service {
-    let mut builder = ::grpcio::ServiceBuilder::new();
-    let instance = s.clone();
-    builder = builder.add_unary_handler(&METHOD_CHAT_REGISTER, move |ctx, req, resp| {
-        instance.register(ctx, req, resp)
-    });
-    let instance = s.clone();
-    builder = builder.add_server_streaming_handler(&METHOD_CHAT_LISTEN, move |ctx, req, resp| {
-        instance.listen(ctx, req, resp)
-    });
-    let instance = s.clone();
-    builder = builder.add_unary_handler(&METHOD_CHAT_SAY, move |ctx, req, resp| {
-        instance.say(ctx, req, resp)
-    });
-    builder.build()
+// server
+
+pub struct ChatServer;
+
+
+impl ChatServer {
+    pub fn new_service_def<H : Chat + 'static + Sync + Send + 'static>(handler: H) -> ::grpc::rt::ServerServiceDefinition {
+        let handler_arc = ::std::sync::Arc::new(handler);
+        ::grpc::rt::ServerServiceDefinition::new("/Chat",
+            vec![
+                ::grpc::rt::ServerMethod::new(
+                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                        name: "/Chat/Register".to_string(),
+                        streaming: ::grpc::rt::GrpcStreaming::Unary,
+                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                    }),
+                    {
+                        let handler_copy = handler_arc.clone();
+                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.register(o, p))
+                    },
+                ),
+                ::grpc::rt::ServerMethod::new(
+                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                        name: "/Chat/Listen".to_string(),
+                        streaming: ::grpc::rt::GrpcStreaming::ServerStreaming,
+                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                    }),
+                    {
+                        let handler_copy = handler_arc.clone();
+                        ::grpc::rt::MethodHandlerServerStreaming::new(move |o, p| handler_copy.listen(o, p))
+                    },
+                ),
+                ::grpc::rt::ServerMethod::new(
+                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
+                        name: "/Chat/Say".to_string(),
+                        streaming: ::grpc::rt::GrpcStreaming::Unary,
+                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
+                    }),
+                    {
+                        let handler_copy = handler_arc.clone();
+                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.say(o, p))
+                    },
+                ),
+            ],
+        )
+    }
 }

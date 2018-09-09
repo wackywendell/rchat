@@ -12,11 +12,14 @@ path = "src/protos/mod.rs"
 
 [dependencies]
 futures = "0.1"
-grpcio = "0.3"
+grpc = "0.5"
 log = "0.4"
 protobuf = "2.0"
 rand = "0.4"
 structopt = "0.2"
+tokio = "0.1"
+# Needed for grpc built crate
+tls-api = "0.1"
 
 [build-dependencies]
-protoc-grpcio = "0.2"
+protoc-rust-grpc = "0.5"

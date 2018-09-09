@@ -1,13 +1,15 @@
 #![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
 
-use std::io::Read;
-use std::sync::Arc;
-
-use protos::chat_grpc;
-
-use futures::{Future, Stream};
+use futures::{future, Stream};
+use grpc::{Error, ServerBuilder};
 use structopt::StructOpt;
+
+use protos::chat_grpc::ChatClient as GrpcClient;
+use protos::chat_grpc::ChatServer as GrpcServer;
+
+use crate::client::ChatClient;
+use crate::server::ChatServer;
 
 pub mod client;
 pub mod server;
@@ -39,75 +41,58 @@ enum Opt {
     Client(ClientOpt),
 }
 
-fn client(o: &ClientOpt) -> Result<(), grpcio::Error> {
-    let env = Arc::new(grpcio::Environment::new(2));
-    let cb = grpcio::ChannelBuilder::new(env);
-    let addr = format!("{}:{}", "127.0.0.1", o.port);
-    let ch = cb.connect(&addr);
-    let c = chat_grpc::ChatClient::new(ch);
-    let cli = client::ChatClient::register(c, o.name.clone())?;
+fn client(o: &ClientOpt) -> Result<(), Error> {
+    let client = GrpcClient::new_plain("::1", o.port, Default::default())?;
+    let cli = ChatClient::register(client, o.name.clone())?;
 
-    let listener = cli.listen()?;
-    std::thread::spawn(move || {
-        let r = listener
-            .for_each(|m| {
-                println!("{}: {}", m.name, m.message);
-                Ok(())
-            }).wait();
-        match r {
-            Ok(()) => {}
-            Err(e) => {
-                println!("Error listening: {}", e);
-            }
-        }
+    let listener = cli.listen();
+
+    let listen_stream = listener
+        .map_err(|e| println!("Error listening: {}", e))
+        .map(move |m| {
+            println!("{}: {}", m.name, m.message);
+            Ok(())
+        });
+
+    let buffed = std::io::BufReader::new(tokio::io::stdin());
+    let line_by_line = tokio::io::lines(buffed);
+    let drop_errs = line_by_line.map_err(|e| println!("error reading: {}", e));
+    let read_stream = drop_errs.map(move |l| {
+        match cli.say(&l) {
+            Ok(_) => (),
+            Err(e) => println!("error saying: {}", e),
+        };
+        Ok(())
     });
 
-    let mut input = String::new();
+    //let merged = listen_stream.select(read_stream).fold((), |(), v| v);
+    let merged = future::lazy(|| {
+        tokio::spawn(listen_stream.fold((), |(), v: Result<(), ()>| v));
+        tokio::spawn(read_stream.fold((), |(), v: Result<(), ()>| v));
+        future::empty::<(), ()>()
+    });
 
-    loop {
-        match std::io::stdin().read_line(&mut input) {
-            Ok(_) => {
-                cli.say(&input)?;
-                input.clear();
-            }
-            Err(error) => {
-                println!("error: {}", error);
-                break;
-            }
-        }
-    }
-
+    tokio::run(merged);
     Ok(())
 }
 
-fn serve(s: &ServeOpt) -> Result<(), grpcio::Error> {
-    let env = Arc::new(grpcio::Environment::new(2));
-    let instance = server::ChatServer::new();
-    let service = chat_grpc::create_chat(instance);
-    let mut server = grpcio::ServerBuilder::new(env)
-        .register_service(service)
-        .bind("127.0.0.1", s.port)
-        .build()?;
-    server.start();
-    for &(ref host, port) in server.bind_addrs() {
-        println!("listening on {}:{}", host, port);
+fn serve(s: &ServeOpt) -> Result<(), Error> {
+    let handler = ChatServer::new();
+    let mut sv = ServerBuilder::new_plain();
+    sv.http.set_port(s.port);
+    sv.add_service(GrpcServer::new_service_def(handler));
+    sv.http.set_cpu_pool_threads(4);
+    let server = sv.build().expect("server");
+
+    println!("Chat server started on port {}", s.port);
+
+    while server.is_alive() {
+        std::thread::park();
     }
-    let (tx, rx) = futures::oneshot();
-    std::thread::spawn(move || {
-        println!("Press ENTER to exit...");
-        let _ = std::io::stdin().read(&mut [0]).unwrap();
-        tx.send(())
-    });
-    match rx.wait() {
-        Ok(()) => {}
-        Err(c) => println!("Err waiting on chan: {}", c),
-    }
-    let f = server.shutdown();
-    server.cancel_all_calls();
-    f.wait()
+    Ok(())
 }
 
-fn main() -> Result<(), grpcio::Error> {
+fn main() -> Result<(), Error> {
     let opt = Opt::from_args();
 
     match opt {

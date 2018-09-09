@@ -1,6 +1,9 @@
 fn main() {
-    let proto_root = "src/protos";
-    println!("cargo:rerun-if-changed={}", proto_root);
-    protoc_grpcio::compile_grpc_protos(&["chat.proto"], &[proto_root], &proto_root)
-        .expect("Failed to compile gRPC definitions!");
+    protoc_rust_grpc::run(protoc_rust_grpc::Args {
+        out_dir: "src/protos",
+        includes: &[],
+        input: &["src/protos/chat.proto"],
+        rust_protobuf: true,
+        ..Default::default()
+    }).expect("protoc-rust-grpc");
 }
